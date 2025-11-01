@@ -1,0 +1,19 @@
+{
+  "name": "data-platform",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@10.19.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "pnpm --filter @dp/api dev",
+    "scrape": "pnpm --filter @dp/scraper start",
+    "scrape:once": "pnpm --filter @dp/scraper run once",
+    "scrape:loop": "node packages/scraper/schedule.js"
+  },
+  "dependencies": {
+    "axios-retry": "^4.5.0"
+  }
+}

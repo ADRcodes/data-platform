@@ -1,0 +1,32 @@
+-- --- SQLite pragmas for better durability + concurrency
+PRAGMA journal_mode = WAL;
+PRAGMA synchronous = NORMAL;
+
+-- --- Main table
+CREATE TABLE IF NOT EXISTS events (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  source      TEXT NOT NULL,
+  source_id   TEXT NOT NULL,
+  title       TEXT NOT NULL,
+  starts_at   TEXT,            -- ISO8601 or NULL
+  ends_at     TEXT,
+  venue       TEXT,
+  city        TEXT,
+  url         TEXT,
+  image_url   TEXT,
+  tags        TEXT,            -- CSV or JSON string (keep simple for now)
+  updated_at  TEXT NOT NULL,
+  UNIQUE(source, source_id) ON CONFLICT REPLACE
+);
+
+-- Helpful indexes for your current queries:
+CREATE INDEX IF NOT EXISTS idx_events_starts_at ON events(starts_at);
+CREATE INDEX IF NOT EXISTS idx_events_source ON events(source);
+CREATE INDEX IF NOT EXISTS idx_events_title ON events(title);
+
+-- Optional: lightweight change tracking, if you want it later
+-- CREATE TABLE IF NOT EXISTS event_changes (
+--   event_id   INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+--   changed_at TEXT NOT NULL,
+--   diff       TEXT NOT NULL
+-- );
