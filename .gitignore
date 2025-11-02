@@ -1,0 +1,28 @@
+# Node
+node_modules/
+.pnpm-debug.log
+pnpm-debug.log
+.env
+.vscode/
+
+# OS
+.DS_Store
+
+# Editor
+*.sublime-workspace
+*.sublime-project
+
+# Lockfiles (we use pnpm)
+package-lock.json
+
+# Database files
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Coverage / build
+coverage/
+dist/
+
+# Misc
+*.log
