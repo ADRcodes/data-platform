@@ -126,4 +126,7 @@ function escapeHtml(s) {
 }
 
 const port = 3001;
-app.listen(port, () => console.log(`API on http://localhost:${port} — open /debug and /events`));
+const server = app.listen(port, () => console.log(`API on http://localhost:${port} — open /debug and /events`));
+server.on("error", err => {
+  console.error("API server failed:", err);
+});

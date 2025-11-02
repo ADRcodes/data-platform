@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS events (
   title       TEXT NOT NULL,
   starts_at   TEXT,            -- ISO8601 or NULL
   ends_at     TEXT,
+  description TEXT,
   venue       TEXT,
   city        TEXT,
   url         TEXT,
