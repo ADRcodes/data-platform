@@ -11,9 +11,15 @@
     "dev:api": "pnpm --filter @dp/api dev",
     "scrape": "pnpm --filter @dp/scraper start",
     "scrape:once": "pnpm --filter @dp/scraper run once",
+    "scrape:one": "node packages/scraper/run-one.js",
     "scrape:loop": "node packages/scraper/schedule.js"
   },
   "dependencies": {
-    "axios-retry": "^4.5.0"
+    "axios-retry": "^4.5.0",
+    "dotenv": "^16.6.1",
+    "node-ical": "^0.16.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1"
   }
 }

@@ -2,7 +2,7 @@ import * as cheerio from "cheerio";
 import { parse } from "date-fns";
 import { http, polite } from "../net.js";
 import { extractEventJsonLd, extractOgImage, normalizeText } from "../dom-utils.js";
-import { absoluteUrl, extractFirstImageUrl, firstNonMetaText } from "../scrape-helpers.js";
+import { absoluteUrl, extractFirstImageUrl, firstNonMetaText, contentHash } from "../scrape-helpers.js";
 
 // Accepts "7:00pm October 24, 2025" or "7:00pm OCTOBER 24, 2025"
 function parseMajesticDate(line) {
@@ -47,15 +47,16 @@ export async function scrapeMajestic() {
     const image_url = extractFirstImageUrl($, card, base);
     const description = firstNonMetaText(lines);
 
+    const absoluteMoreInfo = absoluteUrl(base, moreInfo);
     items.push({
       source: "majestic",
-      source_id: moreInfo || title,
+      source_id: absoluteMoreInfo || title,
       title,
       starts_at,
       ends_at,
       venue,
       city: "St. John's, NL",
-      url: absoluteUrl(base, moreInfo),
+      url: absoluteMoreInfo,
       image_url,
       description,
       tags: ""
@@ -75,15 +76,16 @@ export async function scrapeMajestic() {
       const moreInfo = block.find("a:contains('Details'), a:contains('Buy Tickets')").first().attr("href")
         || $(el).find("a").attr("href") || url;
 
+      const absoluteMoreInfo = absoluteUrl(base, moreInfo);
       items.push({
         source: "majestic",
-        source_id: moreInfo || title,
+        source_id: absoluteMoreInfo || title,
         title,
         starts_at,
         ends_at,
         venue,
         city: "St. John's, NL",
-        url: absoluteUrl(base, moreInfo),
+        url: absoluteMoreInfo,
         image_url: extractFirstImageUrl($, block, base),
         description: firstNonMetaText(lines),
         tags: ""
@@ -93,10 +95,12 @@ export async function scrapeMajestic() {
 
   // dedup
   const seen = new Set();
-  return items.filter(it => {
-    const k = `${it.source_id}::${it.title}`;
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
+  return items
+    .filter(it => {
+      const k = `${it.source_id}::${it.title}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    })
+    .map(it => ({ ...it, content_hash: contentHash(it) }));
 }

@@ -1,4 +1,4 @@
-import * as cheerio from "cheerio";
+import crypto from "node:crypto";
 
 export function absoluteUrl(base, href) {
   try { return new URL(href, base).toString(); } catch { return href || null; }
@@ -39,4 +39,19 @@ export function firstNonMetaText(lines) {
   ];
   const candidate = lines.find(s => s && !bad.some(rx => rx.test(s)));
   return candidate ? candidate.replace(/\s+/g, " ").trim().slice(0, 300) : null;
+}
+
+export function contentHash(event) {
+  const stable = JSON.stringify({
+    title: event.title?.trim() ?? "",
+    starts_at: event.starts_at ?? null,
+    ends_at: event.ends_at ?? null,
+    venue: event.venue?.trim() ?? null,
+    city: event.city ?? null,
+    url: event.url ?? null,
+    image_url: event.image_url ?? null,
+    description: event.description ?? null,
+    tags: event.tags ?? "",
+  });
+  return crypto.createHash("sha1").update(stable).digest("hex");
 }

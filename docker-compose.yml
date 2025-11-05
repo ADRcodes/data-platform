@@ -1,0 +1,30 @@
+version: "3.9"
+services:
+  api:
+    image: node:20
+    working_dir: /app
+    volumes: [".:/app"]
+    command: bash -lc "pnpm install && node packages/api/server.js"
+    environment:
+      - PORT=3001
+      - NODE_ENV=production
+    ports:
+      - "3001:3001"
+    restart: always
+    depends_on: [scraper]
+
+  scraper:
+    image: node:20
+    working_dir: /app
+    volumes: [".:/app"]
+    command: bash -lc "pnpm install && node packages/scraper/schedule.js"
+    environment:
+      - NODE_ENV=production
+      - INTERVAL_MS=86400000
+    restart: always
+
+  # optional now; needed later for BullMQ
+  redis:
+    image: redis:7
+    restart: always
+    ports: ["6379:6379"]

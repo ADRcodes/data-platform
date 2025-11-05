@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS events (
   url         TEXT,
   image_url   TEXT,
   tags        TEXT,            -- CSV or JSON string (keep simple for now)
+  content_hash TEXT,
   updated_at  TEXT NOT NULL,
   UNIQUE(source, source_id) ON CONFLICT REPLACE
 );
@@ -24,6 +25,26 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE INDEX IF NOT EXISTS idx_events_starts_at ON events(starts_at);
 CREATE INDEX IF NOT EXISTS idx_events_source ON events(source);
 CREATE INDEX IF NOT EXISTS idx_events_title ON events(title);
+
+-- Feeds you poll (Google Calendar or any .ics)
+CREATE TABLE IF NOT EXISTS ics_sources (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  label TEXT,
+  url TEXT NOT NULL UNIQUE,
+  active INTEGER NOT NULL DEFAULT 1,
+  last_fetch_at TEXT,
+  last_status TEXT
+);
+
+-- Manual/curated links a human adds (FB, websites)
+CREATE TABLE IF NOT EXISTS event_links (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  url TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_checked_at TEXT,
+  last_status TEXT
+);
+
 
 -- Optional: lightweight change tracking, if you want it later
 -- CREATE TABLE IF NOT EXISTS event_changes (

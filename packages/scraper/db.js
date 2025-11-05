@@ -22,16 +22,42 @@ export function openDb() {
   if (firstTime) {
     const schema = fs.readFileSync(SCHEMA_PATH, "utf8");
     db.exec(schema);
+  } else {
+    const columns = db.prepare("PRAGMA table_info(events)").all();
+    if (!columns.some(col => col.name === "content_hash")) {
+      db.exec("ALTER TABLE events ADD COLUMN content_hash TEXT");
+    }
+
+    // Ensure auxiliary tables exist for admin workflows (ICS feeds, manual links)
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS ics_sources (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        label TEXT,
+        url TEXT NOT NULL UNIQUE,
+        active INTEGER NOT NULL DEFAULT 1,
+        last_fetch_at TEXT,
+        last_status TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS event_links (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        url TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        last_checked_at TEXT,
+        last_status TEXT
+      );
+    `);
   }
   return db;
 }
 
 export function upsertEvents(db, rows) {
+  const sel = db.prepare("SELECT content_hash FROM events WHERE source=@source AND source_id=@source_id");
   const insert = db.prepare(`
     INSERT INTO events
-      (source, source_id, title, starts_at, ends_at, description, venue, city, url, image_url, tags, updated_at)
+      (source, source_id, title, starts_at, ends_at, venue, city, url, image_url, description, tags, content_hash, updated_at)
     VALUES
-      (@source, @source_id, @title, @starts_at, @ends_at, @description, @venue, @city, @url, @image_url, @tags, datetime('now'))
+      (@source, @source_id, @title, @starts_at, @ends_at, @venue, @city, @url, @image_url, @description, @tags, @content_hash, datetime('now'))
     ON CONFLICT(source, source_id) DO UPDATE SET
       title=excluded.title,
       starts_at=excluded.starts_at,
@@ -42,8 +68,16 @@ export function upsertEvents(db, rows) {
       image_url=excluded.image_url,
       description=excluded.description,
       tags=excluded.tags,
+      content_hash=excluded.content_hash,
       updated_at=datetime('now')
   `);
-  const tx = db.transaction(batch => batch.forEach(r => insert.run(r)));
+
+  const tx = db.transaction(batch => {
+    for (const r of batch) {
+      const existing = sel.get({ source: r.source, source_id: r.source_id });
+      if (existing && existing.content_hash === r.content_hash) continue;
+      insert.run(r);
+    }
+  });
   tx(rows);
 }

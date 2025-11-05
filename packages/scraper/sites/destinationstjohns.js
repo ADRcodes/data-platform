@@ -2,7 +2,8 @@ import * as cheerio from "cheerio";
 import { isValid, parse } from "date-fns";
 import { http, polite } from "../net.js";
 import { extractEventJsonLd, extractOgImage, normalizeText } from "../dom-utils.js";
-import { absoluteUrl, extractFirstImageUrl } from "../scrape-helpers.js";
+import { absoluteUrl, extractFirstImageUrl, contentHash } from "../scrape-helpers.js";
+import logger from "../logger.js";
 
 function toIso(date) {
   return date && isValid(date) ? date.toISOString() : null;
@@ -111,8 +112,8 @@ function parseDateTimeRange(dateLine, timeLine) {
   const endDateTime = endTimeStr
     ? parseDateAndTime(endDateStr, endTimeStr)
     : (endDate && startDate && endDate.getTime() !== startDate.getTime()
-        ? endOfDay(endDate)
-        : null);
+      ? endOfDay(endDate)
+      : null);
 
   return {
     starts_at: toIso(startDateTime),
@@ -120,13 +121,9 @@ function parseDateTimeRange(dateLine, timeLine) {
   };
 }
 
-export async function scrapeDestinationStJohns() {
-  const base = "https://destinationstjohns.com";
-  const url = `${base}/events/calendar/`;
-
-  const res = await http.get(url);
+async function scrapeListingPage({ base, pageUrl }) {
+  const res = await http.get(pageUrl);
   await polite();
-
   const $ = cheerio.load(res.data);
   const items = [];
 
@@ -142,7 +139,8 @@ export async function scrapeDestinationStJohns() {
     if (!moreInfo) return;
 
     const dateLine = clean(card.find(".em-event-date").text());
-    const timeLine = clean(card.find(".em-event-time").text());
+    const timeLineRaw = clean(card.find(".em-event-time").text());
+    const timeLine = timeLineRaw || null;
 
     const venueLink = card.find(".em-event-location a").first();
     const venue = clean(venueLink.text()) || null;
@@ -159,23 +157,106 @@ export async function scrapeDestinationStJohns() {
     const image_url = extractFirstImageUrl($, card, base);
     const description = normalizeText(card.find(".em-item-desc").text()) || null;
 
+    const absoluteMoreInfo = absoluteUrl(base, moreInfo);
+
     items.push({
       source: "destinationstjohns",
-      source_id: absoluteUrl(base, moreInfo) || title,
+      source_id: absoluteMoreInfo || title,
       title,
       starts_at,
       ends_at,
       venue,
       city: "St. John's, NL",
-      url: absoluteUrl(base, moreInfo),
+      url: absoluteMoreInfo,
       image_url,
       description,
       tags
     });
   });
 
+  return items;
+}
+
+export async function scrapeDestinationStJohns() {
+  const base = "https://destinationstjohns.com";
+  const baseList = `${base}/events/`;
+  const MAX_PAGES = 10;
+
+  const pages = [];
+  const seenKeys = new Set();
+
+  const buildCandidateUrls = page => {
+    if (page === 1) return [baseList];
+    const guesses = [
+      `?pno=${page}`,
+      `?page=${page}`,
+      `?paged=${page}`,
+      `page/${page}/`,
+      `events/calendar/?pno=${page}`,
+      `?eventDisplay=list&eventPage=${page}`,
+      `?eventPage=${page}`
+    ];
+    const urls = new Set();
+    for (const guess of guesses) {
+      try {
+        const candidate = guess.startsWith("?")
+          ? new URL(guess, baseList).toString()
+          : new URL(guess, baseList).toString();
+        urls.add(candidate);
+      } catch {
+        // ignore malformed URLs
+      }
+    }
+    return [...urls];
+  };
+
+  for (let page = 1; page <= MAX_PAGES; page += 1) {
+    const candidates = buildCandidateUrls(page);
+    let fetchedItems = null;
+    let lastError = null;
+
+    for (const pageUrl of candidates) {
+      try {
+        const items = await scrapeListingPage({ base, pageUrl });
+        fetchedItems = items;
+        break;
+      } catch (err) {
+        const status = err?.response?.status;
+        if (status === 404) {
+          lastError = err;
+          continue;
+        }
+        lastError = err;
+        break;
+      }
+    }
+
+    if (!fetchedItems) {
+      if (lastError) {
+        const status = lastError?.response?.status;
+        if (status === 404) break;
+        throw lastError;
+      }
+      break;
+    }
+
+    const newest = fetchedItems.filter(it => {
+      const key = `${it.source_id}::${it.title}`;
+      if (seenKeys.has(key)) return false;
+      seenKeys.add(key);
+      return true;
+    });
+
+    if (!newest.length) {
+      if (page === 1) continue;
+      break;
+    }
+
+    pages.push(...newest);
+  }
+
   const seen = new Set();
-  const unique = items.filter(it => {
+  const unique = pages.filter(it => {
     const k = `${it.source_id}::${it.title}`;
     if (seen.has(k)) return false;
     seen.add(k);
@@ -257,10 +338,10 @@ export async function scrapeDestinationStJohns() {
         it.ends_at = parsed.ends_at || it.ends_at;
       }
     } catch (e) {
-      console.warn(`enrich failed for ${it.url}:`, e?.message);
+      logger.warn(`enrich failed for ${it.url}:`, e?.message);
     }
     enriched.push(it);
   }
 
-  return enriched;
+  return enriched.map(it => ({ ...it, content_hash: contentHash(it) }));
 }
