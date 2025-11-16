@@ -5,6 +5,8 @@ import { extractEventJsonLd, extractOgImage, normalizeText } from "../dom-utils.
 import { absoluteUrl, extractFirstImageUrl, contentHash } from "../scrape-helpers.js";
 import logger from "../logger.js";
 
+const SKIP_ENRICH = process.env.SCRAPER_SKIP_ENRICH === "1";
+
 function toIso(date) {
   return date && isValid(date) ? date.toISOString() : null;
 }
@@ -262,6 +264,10 @@ export async function scrapeDestinationStJohns() {
     seen.add(k);
     return true;
   });
+
+  if (SKIP_ENRICH) {
+    return unique.map(it => ({ ...it, content_hash: contentHash(it) }));
+  }
 
   const enriched = [];
   for (const it of unique) {

@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS events (
   starts_at   TEXT,            -- ISO8601 or NULL
   ends_at     TEXT,
   description TEXT,
+  price       TEXT,
   venue       TEXT,
   city        TEXT,
   url         TEXT,

@@ -47,7 +47,7 @@ export function createEventsRouter(db) {
     offset = Math.max(parseInt(offset, 10) || 0, 0);
 
     const sql = `
-      SELECT id, source, source_id, title, starts_at, ends_at, venue, city, url, image_url, description, tags
+      SELECT id, source, source_id, title, starts_at, ends_at, venue, city, url, image_url, description, price, tags
       FROM events
       ${where.length ? "WHERE " + where.join(" AND ") : ""}
       ORDER BY datetime(starts_at) ASC
@@ -81,7 +81,7 @@ export function createEventsRouter(db) {
     const row = db
       .prepare(
         `
-        SELECT id, source, source_id, title, starts_at, ends_at, venue, city, url, image_url, description, tags
+        SELECT id, source, source_id, title, starts_at, ends_at, venue, city, url, image_url, description, price, tags
         FROM events WHERE id = @id
       `
       )

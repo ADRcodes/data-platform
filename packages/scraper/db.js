@@ -27,6 +27,9 @@ export function openDb() {
     if (!columns.some(col => col.name === "content_hash")) {
       db.exec("ALTER TABLE events ADD COLUMN content_hash TEXT");
     }
+    if (!columns.some(col => col.name === "price")) {
+      db.exec("ALTER TABLE events ADD COLUMN price TEXT");
+    }
 
     // Ensure auxiliary tables exist for admin workflows (ICS feeds, manual links)
     db.exec(`
@@ -55,9 +58,9 @@ export function upsertEvents(db, rows) {
   const sel = db.prepare("SELECT content_hash FROM events WHERE source=@source AND source_id=@source_id");
   const insert = db.prepare(`
     INSERT INTO events
-      (source, source_id, title, starts_at, ends_at, venue, city, url, image_url, description, tags, content_hash, updated_at)
+      (source, source_id, title, starts_at, ends_at, venue, city, url, image_url, description, price, tags, content_hash, updated_at)
     VALUES
-      (@source, @source_id, @title, @starts_at, @ends_at, @venue, @city, @url, @image_url, @description, @tags, @content_hash, datetime('now'))
+      (@source, @source_id, @title, @starts_at, @ends_at, @venue, @city, @url, @image_url, @description, @price, @tags, @content_hash, datetime('now'))
     ON CONFLICT(source, source_id) DO UPDATE SET
       title=excluded.title,
       starts_at=excluded.starts_at,
@@ -67,6 +70,7 @@ export function upsertEvents(db, rows) {
       url=excluded.url,
       image_url=excluded.image_url,
       description=excluded.description,
+      price=excluded.price,
       tags=excluded.tags,
       content_hash=excluded.content_hash,
       updated_at=datetime('now')
@@ -74,10 +78,32 @@ export function upsertEvents(db, rows) {
 
   const tx = db.transaction(batch => {
     for (const r of batch) {
-      const existing = sel.get({ source: r.source, source_id: r.source_id });
-      if (existing && existing.content_hash === r.content_hash) continue;
-      insert.run(r);
+      const row = { ...r, price: r.price ?? null };
+      const existing = sel.get({ source: row.source, source_id: row.source_id });
+      if (existing && existing.content_hash === row.content_hash) continue;
+      insert.run(row);
     }
   });
   tx(rows);
+}
+
+export function pruneSourceEvents(db, source, rows = []) {
+  if (!source) return;
+  const ids = rows.map(r => r.source_id).filter(Boolean);
+  if (!ids.length) {
+    db.prepare("DELETE FROM events WHERE source = @source").run({ source });
+    return;
+  }
+  const params = { source };
+  const placeholders = ids.map((id, idx) => {
+    const key = `id${idx}`;
+    params[key] = id;
+    return `@${key}`;
+  });
+  const sql = `
+    DELETE FROM events
+    WHERE source = @source
+      AND source_id NOT IN (${placeholders.join(", ")})
+  `;
+  db.prepare(sql).run(params);
 }

@@ -7,12 +7,16 @@
   "workspaces": [
     "packages/*"
   ],
+  "engines": {
+    "node": "^24.11.0"
+  },
   "scripts": {
     "dev:api": "pnpm --filter @dp/api dev",
     "scrape": "pnpm --filter @dp/scraper start",
     "scrape:once": "pnpm --filter @dp/scraper run once",
     "scrape:one": "node packages/scraper/run-one.js",
-    "scrape:loop": "node packages/scraper/schedule.js"
+    "scrape:loop": "node packages/scraper/schedule.js",
+    "build:dataset": "node scripts/build-dataset.js"
   },
   "dependencies": {
     "axios-retry": "^4.5.0",

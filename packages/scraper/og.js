@@ -71,6 +71,17 @@ const TZ_OFFSETS = {
   ADT: -180, // UTC-03:00
 };
 
+const LOGIN_NOISE_REGEX =
+  /(facebook\s*log\s*in|facebook|log\s*in|sign\s*up|see posts|forgot account\?|home|events)/gi;
+
+function stripLoginNoise(value) {
+  if (!value) return "";
+  return value
+    .replace(LOGIN_NOISE_REGEX, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function normaliseTimeText(text) {
   return text
     .replace(/\u202f/g, " ")
@@ -259,15 +270,28 @@ export function parseOpenGraphFromHtml(html, url) {
   })();
 
   const derivedStart = start_time || parseDateFromText(fallbackDate);
+  const cleanedCandidates = textCandidates
+    .map(stripLoginNoise)
+    .map((text) => text.replace(/^(?:\d+\s*)?((Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday).*)$/i, "$1"))
+    .map((text) => text.replace(/(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday).*$/i, "").trim() || text)
+    .map((text) => text.replace(/^[0-9]{1,2}\s*/, "").trim())
+    .filter((text) => text && text.length > 3 && /[A-Za-z]/.test(text));
+
+  const fallbackTitleCandidate = cleanedCandidates.find((text) => {
+    if (/^See\b/i.test(text)) return false;
+    if (/^Log\b/i.test(text)) return false;
+    if (/^(Home|Event|Events)$/i.test(text)) return false;
+    return text.split(" ").length >= 2;
+  });
 
   return {
-    title: cleanText(ogTitle),
+    title: cleanText(ogTitle) || cleanText(fallbackTitleCandidate, 200),
     description: cleanText(ogDesc),
     image_url: cleanText(ogImage || ldImage),
     start_time: derivedStart,
     end_time: end_time || null,
-    venue: venue || cleanText(fallbackVenue, 200),
-    city: city || cleanText(fallbackCity, 120),
+    venue: venue || cleanText(stripLoginNoise(fallbackVenue), 200),
+    city: city || cleanText(stripLoginNoise(fallbackCity), 120),
     tickets_url: ticketLink || tickets_url || null,
     url,
   };
@@ -278,9 +302,45 @@ export function parseOpenGraphFromHtml(html, url) {
  * Returns fields suitable to prefill the admin form.
  */
 export async function fetchOpenGraph(url) {
-  const res = await http.get(url, { responseType: "text" });
-  await polite(200, 400);
-  return parseOpenGraphFromHtml(res.data, url);
+  const tried = new Set();
+  const attempt = async (targetUrl) => {
+    tried.add(targetUrl);
+    const res = await http.get(targetUrl, { responseType: "text" });
+    await polite(200, 400);
+    return parseOpenGraphFromHtml(res.data, targetUrl);
+  };
+
+  try {
+    return await attempt(url);
+  } catch (error) {
+    const originalHost = (() => {
+      try {
+        return new URL(url).hostname;
+      } catch {
+        return null;
+      }
+    })();
+
+    if (!originalHost) throw error;
+
+    const altHosts = [
+      originalHost.replace(/^www\./, "m."),
+      originalHost.replace(/^www\./, "mbasic."),
+    ].filter((host) => host && host !== originalHost);
+
+    for (const host of altHosts) {
+      try {
+        const altUrl = new URL(url);
+        altUrl.hostname = host;
+        if (tried.has(altUrl.toString())) continue;
+        return await attempt(altUrl.toString());
+      } catch (altError) {
+        // try next host
+      }
+    }
+
+    throw error;
+  }
 }
 
 export { parseDateFromText };

@@ -35,9 +35,10 @@ export async function scrapeStJohnsLiving() {
 
   let response;
   try {
+    const timeout = Number.parseInt(process.env.STJOHNSLIVING_TIMEOUT ?? "45000", 10);
     response = await axios.get(feedUrl, {
       responseType: "text",
-      timeout: 20000,
+      timeout,
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; data-platform-bot/1.0)",
         Accept: "text/calendar",

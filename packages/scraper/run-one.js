@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { openDb, upsertEvents } from "./db.js";
+import { openDb, upsertEvents, pruneSourceEvents } from "./db.js";
 import { scrapeDestinationStJohns } from "./sites/destinationstjohns.js";
 import { scrapeMajestic } from "./sites/majestic.js";
 import { scrapeStJohnsLiving } from "./sites/stjohnsliving.js";
@@ -23,5 +23,6 @@ const fn = sources[name];
   const db = openDb();
   const rows = await fn();
   if (rows.length) upsertEvents(db, rows);
+  pruneSourceEvents(db, name, rows);
   logger.info(`Upserted ${rows.length} from ${name}`);
 })();

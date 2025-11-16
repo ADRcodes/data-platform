@@ -51,6 +51,7 @@ export function contentHash(event) {
     url: event.url ?? null,
     image_url: event.image_url ?? null,
     description: event.description ?? null,
+    price: event.price ?? null,
     tags: event.tags ?? "",
   });
   return crypto.createHash("sha1").update(stable).digest("hex");
