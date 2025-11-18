@@ -42,6 +42,25 @@ pnpm dev:api
 # open http://localhost:3001/debug or http://localhost:3001/events
 ```
 
+### Syncing directly to Supabase
+
+The scraper now optionally pushes the normalized events into your Supabase project. Configure credentials once and every `pnpm scrape` run will:
+
+1. Run the three scrapers (`Destination St. John's`, `Majestic`, `St. John's Living`).
+2. Upsert venues, organizers, tags, events, and `event_tags` rows via the Supabase service-role key.
+3. Remove stale events (and their tag links) for each source to keep Supabase in sync with the upstream sites.
+
+Setup:
+
+```bash
+cp .env.example .env
+# edit .env and add your Supabase project values
+SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE_KEY=...
+```
+
+The tables must have an `external_id` column with a unique constraint (events, venues, organizers, tags) plus the `event_tags` join table should have a composite unique key on `(event_id, tag_id)`. The scraper derives deterministic `external_id` values from the source payloads so rerunning the scraper is idempotent. User-owned tables such as `saved_events` or `user_tag_preferences` are never touched.
+
 ## Notes and troubleshooting
 
 - The runtime SQLite database (`data/events.db`) and its WAL/SHM files are ignored by `.gitignore` and should not be committed. If they were previously committed, the repository history may still contain them; this repo has been cleaned to remove those blobs from history.
