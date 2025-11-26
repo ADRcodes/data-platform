@@ -255,13 +255,13 @@ async function pruneSupabaseEvents(client, normalizedEvents) {
 export async function syncRowsToSupabase(rows) {
   if (!hasSupabaseConfig()) {
     logger.warn("Supabase credentials missing; skipping Supabase sync.");
-    return;
+    return { synced: false, reason: "missing_credentials" };
   }
   const client = getSupabaseClient();
   const normalized = normalizeRows(rows);
   if (!normalized.events.length) {
     logger.info("[supabase] No events to sync.");
-    return;
+    return { synced: false, reason: "no_events" };
   }
 
   const venueIds = await upsertEntities(client, "venues", normalized.venues);
@@ -291,4 +291,5 @@ export async function syncRowsToSupabase(rows) {
     .map(([source, count]) => `${source}=${count}`)
     .join(", ");
   logger.info(`[supabase] Synced ${normalized.events.length} events (${summary})`);
+  return { synced: true, reason: "ok", count: normalized.events.length };
 }

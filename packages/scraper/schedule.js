@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./env.js";
 import { main as runScrape } from "./index.js";
 import logger from "./logger.js";
 

@@ -59,6 +59,14 @@ SUPABASE_URL=...
 SUPABASE_SERVICE_ROLE_KEY=...
 ```
 
+Already have fresh rows in `data/events.db` and only want to re-sync them without hitting the remote sites again? Run:
+
+```bash
+pnpm scrape:sync
+```
+
+That command reads every row from SQLite and pushes them to Supabase using the same normalization/upsert logic as the scraper.
+
 The tables must have an `external_id` column with a unique constraint (events, venues, organizers, tags) plus the `event_tags` join table should have a composite unique key on `(event_id, tag_id)`. The scraper derives deterministic `external_id` values from the source payloads so rerunning the scraper is idempotent. User-owned tables such as `saved_events` or `user_tag_preferences` are never touched.
 
 ## Notes and troubleshooting

@@ -107,3 +107,36 @@ export function pruneSourceEvents(db, source, rows = []) {
   `;
   db.prepare(sql).run(params);
 }
+
+export function readAllEvents(db) {
+  const stmt = db.prepare(`
+    SELECT
+      source,
+      source_id,
+      title,
+      starts_at,
+      ends_at,
+      venue,
+      city,
+      url,
+      image_url,
+      description,
+      price,
+      tags
+    FROM events
+  `);
+  return stmt.all().map(row => ({
+    source: row.source,
+    source_id: row.source_id,
+    title: row.title,
+    starts_at: row.starts_at,
+    ends_at: row.ends_at,
+    venue: row.venue,
+    city: row.city,
+    url: row.url,
+    image_url: row.image_url,
+    description: row.description,
+    price: row.price,
+    tags: row.tags,
+  }));
+}

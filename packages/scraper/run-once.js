@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./env.js";
 import { openDb, upsertEvents } from "./db.js";
 import { scrapeDestinationStJohns } from "./sites/destinationstjohns.js";
 import logger from "./logger.js";

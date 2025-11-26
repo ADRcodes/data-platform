@@ -1,10 +1,13 @@
+import "./env.js";
 import { createClient } from "@supabase/supabase-js";
 import logger from "./logger.js";
 
 let cached;
 
 function readEnv(name) {
-  return (process.env[name] ?? "").trim();
+  const raw = process.env[name];
+  if (raw == null) return "";
+  return raw.trim().replace(/^['"]|['"]$/g, "");
 }
 
 export function hasSupabaseConfig() {

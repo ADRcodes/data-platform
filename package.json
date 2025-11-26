@@ -16,6 +16,7 @@
     "scrape:once": "pnpm --filter @dp/scraper run once",
     "scrape:one": "node packages/scraper/run-one.js",
     "scrape:loop": "node packages/scraper/schedule.js",
+    "scrape:sync": "pnpm --filter @dp/scraper run sync",
     "build:dataset": "node scripts/build-dataset.js"
   },
   "dependencies": {
