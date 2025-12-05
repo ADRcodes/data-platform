@@ -16,7 +16,7 @@ export function createEventsRouter(db) {
   const router = Router();
 
   router.get("/", (req, res) => {
-    let { from, to, source, q, limit = "100", offset = "0" } = req.query;
+    let { from, to, source, q, limit = "300", offset = "0" } = req.query;
 
     if (from && !isIsoDate(from)) from = undefined;
     if (to && !isIsoDate(to)) to = undefined;

@@ -3,17 +3,19 @@ import { openDb, upsertEvents, pruneSourceEvents } from "./db.js";
 import { scrapeDestinationStJohns } from "./sites/destinationstjohns.js";
 import { scrapeMajestic } from "./sites/majestic.js";
 import { scrapeStJohnsLiving } from "./sites/stjohnsliving.js";
+import { scrapeShowpass } from "./sites/showpass.js";
 import logger from "./logger.js";
 
 const sources = {
   destinationstjohns: scrapeDestinationStJohns,
   majestic: scrapeMajestic,
   stjohnsliving: scrapeStJohnsLiving,
+  showpass: scrapeShowpass,
 };
 
 const name = process.argv[2];
 if (!name || !sources[name]) {
-  logger.error("Usage: node packages/scraper/run-one.js <destinationstjohns|majestic|stjohnsliving>");
+  logger.error("Usage: node packages/scraper/run-one.js <destinationstjohns|majestic|stjohnsliving|showpass>");
   process.exit(1);
 }
 
