@@ -8,6 +8,11 @@ Use this to track what we scrape and any observations while iterating.
 - St. John's Living — `pnpm scrape:one stjohnsliving` (general community listings)
 - Showpass (St. John's) — `pnpm scrape:one showpass` (filters Showpass events for the region)
 
+## Potential sources
+- Eventbright - only a couple sources of interest. API available, but must specific organizers for it. Some Genesis centre events
+- The Rooms - only a couple events of interest, a couple crafting classes
+- 
+
 ## Data cadence
 - Standard run: `pnpm scrape` (runs all sources, writes `data/events.db`, prunes stale per source).
 - Sync only: `pnpm scrape:sync` (push existing SQLite rows to Supabase without re-scraping).
