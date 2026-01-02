@@ -11,7 +11,7 @@ Use this to track what we scrape and any observations while iterating.
 ## Potential sources
 - Eventbright - only a couple sources of interest. API available, but must specific organizers for it. Some Genesis centre events
 - The Rooms - only a couple events of interest, a couple crafting classes
-- 
+- TechNL
 
 ## Data cadence
 - Standard run: `pnpm scrape` (runs all sources, writes `data/events.db`, prunes stale per source).
