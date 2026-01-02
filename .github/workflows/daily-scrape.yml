@@ -18,13 +18,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node (from .nvmrc)
+      # Match your engines.node ^24.11.0
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version-file: ".nvmrc"
-          # IMPORTANT: no pnpm cache here, or it will fail before pnpm exists
+          node-version: "24.11.0"
 
-      - name: Setup pnpm
+      # IMPORTANT: do NOT specify pnpm version here since package.json already pins it
+      - name: Setup pnpm (from packageManager in package.json)
         uses: pnpm/action-setup@v4
         with:
           run_install: false
@@ -42,8 +43,22 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-
 
+      # Cache Playwright browsers (so we don't download Chromium every run)
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
       - name: Install deps
         run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium (and OS deps)
+        run: pnpm exec playwright install --with-deps chromium
+        # ^ This is the missing piece. Playwright requires a separate browser download step.
+        # Docs recommend playwright install --with-deps in CI. :contentReference[oaicite:1]{index=1}
 
       - name: Randomize start (0-3600s)
         shell: bash
