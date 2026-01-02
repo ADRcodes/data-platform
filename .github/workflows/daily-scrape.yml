@@ -2,8 +2,7 @@ name: Daily scrape -> Supabase
 
 on:
   schedule:
-    # 11:00 UTC daily (GitHub cron is UTC)
-    - cron: "0 11 * * *"
+    - cron: "0 11 * * *"   # 11:00 UTC daily
   workflow_dispatch:
 
 concurrency:
@@ -23,13 +22,26 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: ".nvmrc"
-          cache: "pnpm"
+          # IMPORTANT: no pnpm cache here, or it will fail before pnpm exists
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 10
           run_install: false
+
+      - name: Get pnpm store path
+        id: pnpm-store
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
 
       - name: Install deps
         run: pnpm install --frozen-lockfile
@@ -41,7 +53,7 @@ jobs:
           echo "Sleeping for ${delay}s to randomize run time..."
           sleep "$delay"
 
-      - name: Scrape + upsert to Supabase
+      - name: Full scrape + upsert to Supabase
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
