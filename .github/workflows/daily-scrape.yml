@@ -12,7 +12,7 @@ concurrency:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -60,10 +60,10 @@ jobs:
         # ^ This is the missing piece. Playwright requires a separate browser download step.
         # Docs recommend playwright install --with-deps in CI. :contentReference[oaicite:1]{index=1}
 
-      - name: Randomize start (0-3600s)
+      - name: Randomize start (0-360s)
         shell: bash
         run: |
-          delay=$((RANDOM % 3600))
+          delay=$((RANDOM % 360))
           echo "Sleeping for ${delay}s to randomize run time..."
           sleep "$delay"
 
