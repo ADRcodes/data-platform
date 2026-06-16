@@ -5,6 +5,14 @@ import { getSupabaseClient, hasSupabaseConfig } from "./supabase-client.js";
 const UPSERT_CHUNK_SIZE = 200;
 
 const TAG_SPLIT_REGEX = /[,/|]/;
+const SOURCE_PRIORITY = {
+  artsandculturecentre: 0,
+  majestic: 5,
+  manual: 10,
+  showpass: 30,
+  destinationstjohns: 50,
+  stjohnsliving: 60,
+};
 
 function slugify(value) {
   return value
@@ -31,6 +39,88 @@ function normalizeText(value) {
   if (value == null) return null;
   const text = String(value).replace(/\s+/g, " ").trim();
   return text || null;
+}
+
+function sourcePriority(source) {
+  return SOURCE_PRIORITY[source] ?? 100;
+}
+
+function normalizeDedupeTitle(value) {
+  return normalizeText(value)
+    ?.toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/\bst\.?\s+john'?s\b/g, "st johns")
+    .replace(/\s+[-–—]\s+st johns$/i, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim() || null;
+}
+
+function normalizeDedupeCity(value) {
+  const city = normalizeText(value)?.toLowerCase();
+  if (!city) return "";
+  if (/\bst\.?\s+john'?s\b/.test(city)) return "st johns nl";
+  return city.replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function dedupeKey(event) {
+  const title = normalizeDedupeTitle(event.title);
+  const date = normalizeText(event.date);
+  if (!title || !date) return null;
+  return [title, date, normalizeDedupeCity(event.city)].join("::");
+}
+
+function mergeEventGroup(group) {
+  const sorted = [...group].sort((a, b) => {
+    const priorityDelta = sourcePriority(a.source) - sourcePriority(b.source);
+    if (priorityDelta !== 0) return priorityDelta;
+    return String(a.external_id).localeCompare(String(b.external_id));
+  });
+  const merged = { ...sorted[0], tag_keys: [] };
+  const fieldNames = [
+    "title",
+    "description",
+    "date",
+    "end_date",
+    "url",
+    "image_url",
+    "price",
+    "venue_key",
+    "organizer_key",
+  ];
+
+  for (const field of fieldNames) {
+    if (merged[field] != null && merged[field] !== "") continue;
+    const fallback = sorted.find(event => event[field] != null && event[field] !== "");
+    if (fallback) merged[field] = fallback[field];
+  }
+
+  const tags = new Set();
+  for (const event of sorted) {
+    for (const tagKey of event.tag_keys || []) tags.add(tagKey);
+  }
+  merged.tag_keys = [...tags];
+  return merged;
+}
+
+function mergeDuplicateEvents(events) {
+  const groups = new Map();
+  const passthrough = [];
+
+  for (const event of events) {
+    const key = dedupeKey(event);
+    if (!key) {
+      passthrough.push(event);
+      continue;
+    }
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(event);
+  }
+
+  return [
+    ...passthrough,
+    ...[...groups.values()].map(group => group.length === 1 ? group[0] : mergeEventGroup(group))
+  ];
 }
 
 function parseTags(raw) {
@@ -144,14 +234,17 @@ function normalizeRows(rows) {
       url,
       image_url: imageUrl,
       price,
+      city,
       venue_key: venueKey,
       organizer_key: organizerKey,
       tag_keys: tagKeys,
     });
   }
 
+  const mergedEvents = mergeDuplicateEvents(events);
+
   return {
-    events,
+    events: mergedEvents,
     venues: Array.from(venues.values()),
     organizers: Array.from(organizers.values()),
     tags: Array.from(tags.values()),

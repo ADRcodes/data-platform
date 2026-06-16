@@ -7,6 +7,7 @@ Use this to track what we scrape and any observations while iterating.
 - Majestic Theatre — `pnpm scrape:one majestic` (checks event detail pages for richer content)
 - St. John's Living — `pnpm scrape:one stjohnsliving` (general community listings)
 - Showpass (St. John's) — `pnpm scrape:one showpass` (filters Showpass events for the region)
+- Arts and Culture Centre St. John's — `pnpm scrape:one artsandculturecentre` (expands event pages into St. John's performance rows)
 
 ## Potential sources
 - Eventbright - only a couple sources of interest. API available, but must specific organizers for it. Some Genesis centre events

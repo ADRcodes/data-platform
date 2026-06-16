@@ -4,29 +4,45 @@ import { scrapeDestinationStJohns } from "./sites/destinationstjohns.js";
 import { scrapeMajestic } from "./sites/majestic.js";
 import { scrapeStJohnsLiving } from "./sites/stjohnsliving.js";
 import { scrapeShowpass } from "./sites/showpass.js";
+import { scrapeArtsAndCultureCentre } from "./sites/artsandculturecentre.js";
 import logger from "./logger.js";
 import { syncRowsToSupabase } from "./supabase-sync.js";
+
+async function runSource(name, scraper) {
+  const rows = await scraper();
+  return {
+    name,
+    rows,
+    skipped: Boolean(rows?.skipped),
+    skipReason: rows?.skipReason ?? null,
+  };
+}
 
 export async function main() {
   const db = openDb();
 
-  const [destinationRows, majesticRows, stJohnsLivingRows, showpassRows] = await Promise.all([
-    scrapeDestinationStJohns(),
-    scrapeMajestic(),
-    scrapeStJohnsLiving(),
-    scrapeShowpass()
+  const [destination, majestic, stJohnsLiving, showpass, artsAndCultureCentre] = await Promise.all([
+    runSource("destinationstjohns", scrapeDestinationStJohns),
+    runSource("majestic", scrapeMajestic),
+    runSource("stjohnsliving", scrapeStJohnsLiving),
+    runSource("showpass", scrapeShowpass),
+    runSource("artsandculturecentre", scrapeArtsAndCultureCentre)
   ]);
-  const rows = [...destinationRows, ...majesticRows, ...stJohnsLivingRows, ...showpassRows];
+  const sourceResults = [destination, majestic, stJohnsLiving, showpass, artsAndCultureCentre];
+  const rows = sourceResults.flatMap(result => result.rows);
   const countsBySource = rows.reduce((acc, row) => {
     acc[row.source] = (acc[row.source] ?? 0) + 1;
     return acc;
   }, {});
   if (!rows.length) {
     logger.info("No events fetched; nothing to upsert.");
-    pruneSourceEvents(db, "destinationstjohns", destinationRows);
-    pruneSourceEvents(db, "majestic", majesticRows);
-    pruneSourceEvents(db, "stjohnsliving", stJohnsLivingRows);
-    pruneSourceEvents(db, "showpass", showpassRows);
+    for (const result of sourceResults) {
+      if (result.skipped) {
+        logger.warn(`Skipping prune for ${result.name}${result.skipReason ? ` (${result.skipReason})` : ""}.`);
+        continue;
+      }
+      pruneSourceEvents(db, result.name, result.rows);
+    }
     return;
   }
 
@@ -39,10 +55,13 @@ export async function main() {
 
   await syncRowsToSupabase(rows);
 
-  pruneSourceEvents(db, "destinationstjohns", destinationRows);
-  pruneSourceEvents(db, "majestic", majesticRows);
-  pruneSourceEvents(db, "stjohnsliving", stJohnsLivingRows);
-  pruneSourceEvents(db, "showpass", showpassRows);
+  for (const result of sourceResults) {
+    if (result.skipped) {
+      logger.warn(`Skipping prune for ${result.name}${result.skipReason ? ` (${result.skipReason})` : ""}.`);
+      continue;
+    }
+    pruneSourceEvents(db, result.name, result.rows);
+  }
 }
 main().catch(e => {
   logger.error("Scrape failed:", e);
