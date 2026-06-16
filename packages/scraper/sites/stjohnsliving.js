@@ -1,8 +1,7 @@
-import axios from "axios";
 import ical from "node-ical";
 import logger from "../logger.js";
 import { contentHash } from "../scrape-helpers.js";
-import { polite } from "../net.js";
+import { http, polite } from "../net.js";
 
 const DEFAULT_FEED_URL = "https://stjohnsliving.ca/events/list/?ical=1";
 const DEFAULT_CITY = "St. John's, NL";
@@ -36,16 +35,24 @@ export async function scrapeStJohnsLiving() {
   let response;
   try {
     const timeout = Number.parseInt(process.env.STJOHNSLIVING_TIMEOUT ?? "45000", 10);
-    response = await axios.get(feedUrl, {
+    response = await http.get(feedUrl, {
       responseType: "text",
       timeout,
       headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; data-platform-bot/1.0)",
         Accept: "text/calendar",
       },
     });
     await polite(200, 400);
   } catch (err) {
+    const status = err?.response?.status;
+    if (status === 403 || status === 429) {
+      logger.warn(`StJohnsLiving: ICS feed returned ${status}; skipping this source for this run.`);
+      const rows = [];
+      rows.skipped = true;
+      rows.skipReason = `HTTP ${status}`;
+      return rows;
+    }
+
     logger.error("StJohnsLiving: failed to download ICS feed:", err?.message ?? err);
     throw err;
   }
