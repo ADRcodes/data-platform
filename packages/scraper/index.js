@@ -7,12 +7,17 @@ import { scrapeShowpass } from "./sites/showpass.js";
 import { scrapeArtsAndCultureCentre } from "./sites/artsandculturecentre.js";
 import logger from "./logger.js";
 import { syncRowsToSupabase } from "./supabase-sync.js";
+import { shouldExcludeEvent } from "./scrape-helpers.js";
 
 async function runSource(name, scraper) {
   const rows = await scraper();
+  const filteredRows = Array.isArray(rows) ? rows.filter(row => !shouldExcludeEvent(row)) : rows;
+  if (Array.isArray(rows) && rows.length !== filteredRows.length) {
+    logger.info(`Filtered ${rows.length - filteredRows.length} excluded events from ${name}.`);
+  }
   return {
     name,
-    rows,
+    rows: filteredRows,
     skipped: Boolean(rows?.skipped),
     skipReason: rows?.skipReason ?? null,
   };

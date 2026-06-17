@@ -56,3 +56,19 @@ export function contentHash(event) {
   });
   return crypto.createHash("sha1").update(stable).digest("hex");
 }
+
+export function shouldExcludeEvent(event) {
+  const haystack = [
+    event?.title,
+    event?.venue,
+    event?.city,
+    event?.description,
+    event?.url,
+    event?.tags,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return /\bbay\s+roberts\b/.test(haystack);
+}

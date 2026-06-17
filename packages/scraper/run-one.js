@@ -6,6 +6,7 @@ import { scrapeStJohnsLiving } from "./sites/stjohnsliving.js";
 import { scrapeShowpass } from "./sites/showpass.js";
 import { scrapeArtsAndCultureCentre } from "./sites/artsandculturecentre.js";
 import logger from "./logger.js";
+import { shouldExcludeEvent } from "./scrape-helpers.js";
 
 const sources = {
   destinationstjohns: scrapeDestinationStJohns,
@@ -29,10 +30,14 @@ function shouldSkipPrune(rows) {
 
 (async () => {
   const db = openDb();
-  const rows = await fn();
+  const scrapedRows = await fn();
+  const rows = Array.isArray(scrapedRows) ? scrapedRows.filter(row => !shouldExcludeEvent(row)) : scrapedRows;
+  if (Array.isArray(scrapedRows) && scrapedRows.length !== rows.length) {
+    logger.info(`Filtered ${scrapedRows.length - rows.length} excluded events from ${name}.`);
+  }
   if (rows.length) upsertEvents(db, rows);
-  if (shouldSkipPrune(rows)) {
-    logger.warn(`Skipping prune for ${name}${rows.skipReason ? ` (${rows.skipReason})` : ""}.`);
+  if (shouldSkipPrune(scrapedRows)) {
+    logger.warn(`Skipping prune for ${name}${scrapedRows.skipReason ? ` (${scrapedRows.skipReason})` : ""}.`);
     return;
   }
   pruneSourceEvents(db, name, rows);

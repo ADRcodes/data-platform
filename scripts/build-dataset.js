@@ -8,6 +8,7 @@ import { scrapeDestinationStJohns } from "../packages/scraper/sites/destinations
 import { scrapeMajestic } from "../packages/scraper/sites/majestic.js";
 import { scrapeStJohnsLiving } from "../packages/scraper/sites/stjohnsliving.js";
 import { fetchIcs } from "../packages/scraper/ics.js";
+import { shouldExcludeEvent } from "../packages/scraper/scrape-helpers.js";
 import logger from "../packages/scraper/logger.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -49,7 +50,7 @@ async function scrapeAllSites() {
   }
 
   const results = await Promise.all(tasks);
-  const rows = results.flat();
+  const rows = results.flat().filter(row => !shouldExcludeEvent(row));
 
   rows.sort((a, b) => {
     const left = a.starts_at ?? "";

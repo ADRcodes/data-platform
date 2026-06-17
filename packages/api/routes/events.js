@@ -1,5 +1,16 @@
 import { Router } from "express";
 
+const EXCLUDED_LOCATION_SQL = `
+  lower(
+    coalesce(title, '') || ' ' ||
+    coalesce(venue, '') || ' ' ||
+    coalesce(city, '') || ' ' ||
+    coalesce(description, '') || ' ' ||
+    coalesce(url, '') || ' ' ||
+    coalesce(tags, '')
+  ) NOT LIKE '%bay roberts%'
+`;
+
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
 }
@@ -22,7 +33,7 @@ export function createEventsRouter(db) {
     if (to && !isIsoDate(to)) to = undefined;
     if (source && typeof source !== "string") source = undefined;
 
-    const where = [];
+    const where = [EXCLUDED_LOCATION_SQL];
     const params = {};
 
     if (from) {

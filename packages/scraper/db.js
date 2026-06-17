@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { shouldExcludeEvent } from "./scrape-helpers.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(__dirname, "..", "..");
@@ -78,6 +79,7 @@ export function upsertEvents(db, rows) {
 
   const tx = db.transaction(batch => {
     for (const r of batch) {
+      if (shouldExcludeEvent(r)) continue;
       const row = { ...r, price: r.price ?? null };
       const existing = sel.get({ source: row.source, source_id: row.source_id });
       if (existing && existing.content_hash === row.content_hash) continue;

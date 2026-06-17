@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import logger from "./logger.js";
 import { getSupabaseClient, hasSupabaseConfig } from "./supabase-client.js";
+import { shouldExcludeEvent } from "./scrape-helpers.js";
 
 const UPSERT_CHUNK_SIZE = 200;
 
@@ -174,6 +175,7 @@ function normalizeRows(rows) {
   const countsBySource = new Map();
 
   for (const row of rows) {
+    if (shouldExcludeEvent(row)) continue;
     const source = row.source || "unknown";
     countsBySource.set(source, (countsBySource.get(source) ?? 0) + 1);
 
